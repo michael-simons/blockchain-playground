@@ -77,11 +77,6 @@ public class Chain {
    private final List<Block> blocks = Collections.synchronizedList(new ArrayList<>());
 
    /**
-    * State containing the latest index.
-    */
-   private final AtomicInteger lastIndex;
-
-   /**
     * A queue with pending transactions.
     */
    private final Queue<Transaction> pendingTransactions;
@@ -102,7 +97,6 @@ public class Chain {
 
    public Chain(final Supplier<Block> genesisBlockSupplier) {
       this.blocks.add(genesisBlockSupplier.get());
-      this.lastIndex = new AtomicInteger(this.blocks.size());
 
       // Prepare metrics
       // We directly interact with timers and counters, so we need their instances
@@ -130,7 +124,10 @@ public class Chain {
          blockCounter.increment();
       };
 
-      final Function<Block, Mono<Block>> nextBlock = template -> Flux.fromStream(Stream.iterate(0L, i -> i+1))
+      final Function<Block, Block> toTemplate = previousBlock ->
+            new Block(previousBlock.getIndex() + 1, clock.millis(), -1, selectTransactions(5), hash(previousBlock));
+
+      final Function<Block, Mono<Block>> toNextBlock = template -> Flux.fromStream(Stream.iterate(0L, i -> i+1))
             .parallel().runOn(Schedulers.parallel())
             .map(proof -> template.newCandidateOf(proof))
             .filter(newCandidate -> hash(newCandidate).startsWith("000000"))
@@ -139,18 +136,18 @@ public class Chain {
 
       final Supplier<Mono<Block>> latestBlock = () -> Mono.just(blocks.get(this.blocks.size() - 1));
 
-      // Check first if there's a pending block, otherwise use the latest
-      var miner = Optional.ofNullable(pendingBlocks.poll()).orElseGet(latestBlock)
-               .map(this::hash)
-               .map(hashOfPreviousBlock ->
-                     new Block(lastIndex.incrementAndGet(), clock.millis(), -1, selectTransactions(5), hashOfPreviousBlock))
-               .flatMap(nextBlock)
+      synchronized (pendingBlocks) {
+         // Check first if there's a pending block, otherwise use the latest
+         var miner = Optional.ofNullable(pendingBlocks.poll()).orElseGet(latestBlock)
+               .map(toTemplate)
+               .flatMap(toNextBlock)
                .doOnSuccess(storeBlock)
                // This is paramount. The mono gets replayed on each subscription
                .cache();
-      // Add it to the pending blocks in any case.
-      pendingBlocks.offer(miner);
-      return miner;
+         // Add it to the pending blocks in any case.
+         pendingBlocks.add(miner);
+         return miner;
+      }
    }
 
    public Mono<List<Block>> getBlocks() {
