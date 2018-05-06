@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ChainTest {
    @Test
    public void hashingShouldWork() {
-      var chain = new Chain();
+      var chain = Chain.defaultChain();
       var genesisBlock = Chain.DEFAULT_GENESIS_BLOCK.get();
 
       assertThat(chain.hash(genesisBlock))
@@ -22,7 +22,7 @@ public class ChainTest {
 
    @Test
    public void selectTransactionsShouldWork() {
-      var chain = new Chain();
+      var chain = Chain.defaultChain();
 
       Flux.concat(
          Stream.of("a", "b", "c").map(chain::queue).collect(Collectors.toList())
