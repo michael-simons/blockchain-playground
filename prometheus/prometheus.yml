@@ -9,3 +9,7 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['localhost:8080']
+  - job_name: 'reactive-kotlin-chain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8090']
