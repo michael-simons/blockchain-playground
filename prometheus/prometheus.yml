@@ -1,0 +1,11 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  - job_name: 'reactive-java-chain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8080']

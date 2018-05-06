@@ -1,0 +1,2 @@
+prometheus/*
+!prometheus/prometheus.yml
