@@ -27,7 +27,7 @@ public class ReactiveJavaChainApplication {
 
 	@Bean
 	public Chain chain() {
-		return new Chain();
+		return Chain.defaultChain();
 	}
 
 	@Bean

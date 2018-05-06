@@ -33,17 +33,6 @@ public class Chain {
    static Supplier<Block> DEFAULT_GENESIS_BLOCK = () -> new Block(1, 0, 1917336, List.of(new Transaction("b3c973e2-db05-4eb5-9668-3e81c7389a6d", 0, "I am Heribert Innoq")), "0");
 
    /**
-    * Lokal block to json transformer, assuming json is generated via Jackson.
-    */
-   private static final BiFunction<ObjectMapper, Block, byte[]> TO_JSON = (objectMapper, block) -> {
-      try {
-         return objectMapper.writeValueAsBytes(block);
-      } catch (JsonProcessingException e) {
-         throw new RuntimeException(e);
-      }
-   };
-
-   /**
     * Digester wrapping a MessageDigest, which is not thread safe.
     */
    private static final Function<byte[], byte[]> DIGEST = bytes -> {
@@ -62,7 +51,7 @@ public class Chain {
    /**
     * Local instance of an object mapper.
     */
-   private final ObjectMapper objectMapper = new ObjectMapper();
+   private final Function<Block, byte[]> blockToJson;
 
    /**
     * Can be injected to compute blocks in different timezones.
@@ -91,12 +80,20 @@ public class Chain {
     */
    private final Counter blockCounter;
 
-   public Chain() {
-      this(DEFAULT_GENESIS_BLOCK);
+   public static Chain defaultChain() {
+      final ObjectMapper objectMapper = new ObjectMapper();
+      return new Chain(DEFAULT_GENESIS_BLOCK.get(), block -> {
+         try {
+            return objectMapper.writeValueAsBytes(block);
+         } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+         }
+      });
    }
 
-   public Chain(final Supplier<Block> genesisBlockSupplier) {
-      this.blocks.add(genesisBlockSupplier.get());
+   private Chain(Block genesisBlock, final Function<Block, byte[]> blockToJson ) {
+      this.blocks.add(genesisBlock);
+      this.blockToJson = blockToJson;
 
       // Prepare metrics
       // We directly interact with timers and counters, so we need their instances
@@ -163,9 +160,9 @@ public class Chain {
 
    String hash(final Block block) {
       return hashTimer.record(() ->
-         TO_JSON
+          blockToJson
             .andThen(DIGEST)
             .andThen(ENCODE)
-            .apply(objectMapper, block));
+            .apply(block));
    }
 }
