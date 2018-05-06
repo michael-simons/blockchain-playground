@@ -83,11 +83,9 @@ class Chain(
                     .next()
         }
 
-        val latestBlock = { Mono.just(blocks[this.blocks.size - 1]) }
-
         synchronized(pendingBlocks) {
             // Check first if there's a pending block, otherwise use the latest
-            val miner = Optional.ofNullable(pendingBlocks.poll()).orElseGet(latestBlock)
+            val miner = (pendingBlocks.poll() ?: Mono.just(blocks.last()))
                     .map(toTemplate)
                     .flatMap(toNextBlock)
                     .doOnSuccess(storeBlock)
