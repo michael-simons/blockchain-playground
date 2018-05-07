@@ -48,9 +48,9 @@ public class Chain {
 	};
 
 	/**
-	 * Fancy way of hex encoding bytes.
+	 * Creates a base64 string from a byte array.
 	 */
-	private static final Function<byte[], String> ENCODE = bytes -> String.format("%064x", new BigInteger(1, bytes));
+	private static final Function<byte[], String> ENCODE = HashUtils.ENCODE_WITH_GUAVA_ALGORITHM;
 
 	/**
 	 * Local instance of an object mapper.
