@@ -7,7 +7,7 @@ import reactor.core.publisher.Mono
 
 class ChainTest {
     @Test
-    fun `hashing should Work`() {
+    fun `hashing should work`() {
         val chain = Chain()
         val genesisBlock = genesisBlock()
 

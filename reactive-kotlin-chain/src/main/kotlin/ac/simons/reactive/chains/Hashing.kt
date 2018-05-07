@@ -1,6 +1,5 @@
 package ac.simons.reactive.chains
 
-import java.math.BigInteger
 import java.security.MessageDigest
 
 /**
@@ -8,7 +7,9 @@ import java.security.MessageDigest
  */
 fun digest(bytes: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(bytes)
 
+private val HEX_DIGITS = "0123456789abcdef".toCharArray()
+
 /**
  * Encodes a byte array as hex.
  */
-fun encode(bytes: ByteArray): String = String.format("%064x", BigInteger(1, bytes))
+fun encode(bytes: ByteArray): String = bytes.fold("", {str, b -> str + HEX_DIGITS[ (b.toInt() shr 4) and 0xf] + HEX_DIGITS[b.toInt() and 0xf]})
