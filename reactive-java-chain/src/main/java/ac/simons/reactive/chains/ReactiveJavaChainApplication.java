@@ -15,11 +15,13 @@
  */
 package ac.simons.reactive.chains;
 
+import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
 import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 import static org.springframework.web.reactive.function.server.ServerResponse.created;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
+import static org.springframework.web.reactive.function.server.ServerResponse.status;
 
 import java.util.Map;
 
@@ -28,6 +30,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -48,12 +51,14 @@ public class ReactiveJavaChainApplication {
 
 	@Bean
 	RouterFunction<?> router(final Chain chain) {
-		return route(GET("/mine"), request -> ok().body(chain.mine(), Block.class))
+		return route(GET("/mine"), request -> status(CREATED).body(chain.mine(), Block.class))
 				.and(route(POST("/transactions"), request ->
 						request.bodyToMono(String.class)
 								.flatMap(chain::queue)
 								.flatMap(p -> created(
-										UriComponentsBuilder.fromUri(request.uri()).pathSegment("{id}").buildAndExpand(Map.of("id", p.getId())).encode().toUri())
+										UriComponentsBuilder.fromUri(request.uri())
+												.pathSegment("{id}").buildAndExpand(Map.of("id", p.getId())).encode().
+												toUri())
 										.body(Mono.just(p), Transaction.class))))
 				.and(route(GET("/blocks"), request -> ok().body(
 						chain.getBlocks().map(blocks -> Map.of("blocks", blocks, "blockHeight", blocks.size())), Map.class)));

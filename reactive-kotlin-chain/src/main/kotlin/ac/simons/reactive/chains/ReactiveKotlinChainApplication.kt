@@ -18,12 +18,11 @@ package ac.simons.reactive.chains
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.runApplication
 import org.springframework.context.support.beans
 import org.springframework.core.env.Environment
-import org.springframework.web.reactive.function.server.ServerResponse.created
-import org.springframework.web.reactive.function.server.ServerResponse.ok
+import org.springframework.http.HttpStatus.CREATED
+import org.springframework.web.reactive.function.server.ServerResponse.*
 import org.springframework.web.reactive.function.server.body
 import org.springframework.web.reactive.function.server.bodyToMono
 import org.springframework.web.reactive.function.server.router
@@ -44,7 +43,7 @@ fun beans() = beans {
         with(Chain()) {
             router {
                 GET("/mine", {
-                    ok().body(mine())
+                    status(CREATED).body(mine())
                 })
                 POST("/transactions", { request ->
                     request.bodyToMono<String>()
