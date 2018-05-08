@@ -1,0 +1,23 @@
+version: '3'
+services:
+  reactive-java-chain:
+    image: msimons/reactive-java-chain
+    build:
+      context: ../reactive-java-chain
+    ports:
+      - 8080
+  reactive-kotlin-chain:
+    image: msimons/reactive-kotlin-chain
+    build:
+      context: ../reactive-kotlin-chain
+    ports:
+      - 8090
+  lb:
+    image: dockercloud/haproxy
+    links:
+      - reactive-java-chain
+      - reactive-kotlin-chain
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 9000:80
