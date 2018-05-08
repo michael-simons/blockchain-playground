@@ -1,14 +1,13 @@
 package ac.simons.reactive.chains;
 
-import org.junit.Test;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+
+import reactor.core.publisher.Flux;
 
 public class ChainTest {
    @Test
