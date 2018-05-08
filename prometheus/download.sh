@@ -1,0 +1,2 @@
+#!/bin/bash
+wget -qO- https://github.com/prometheus/prometheus/releases/download/v2.2.1/prometheus-2.2.1.`uname | tr '[:upper:]' '[:lower:]'`-amd64.tar.gz | tar xzk --strip-components 1  -C . 2>/dev/null
