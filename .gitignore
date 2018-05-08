@@ -1,3 +1,4 @@
 prometheus/*
 !prometheus/prometheus.yml
 .idea
+.DS_Store
