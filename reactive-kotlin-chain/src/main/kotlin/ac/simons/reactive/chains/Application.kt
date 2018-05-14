@@ -45,14 +45,14 @@ fun beans() = beans {
     // Some JSON customization
     bean<EventModule>()
 
-    // Routing to the chain
+    // Routing and control flow
     bean {
-        with(Chain()) {
-            // Events are not published from within the chain but from within this application
-            // So no need to dependency inject anything into the chain.
-            val eventPublisher = EventPublisher()
+        // Events are not published from within the chain but from within this application
+        // So no need to dependency inject anything into the chain.
+        val eventPublisher = EventPublisher()
 
-            router {
+        router {
+            with(Chain()) {
                 GET("/", { ok().body(getStatus()) })
                 GET("/mine", {
                     status(CREATED).body(mine().doOnNext(eventPublisher::publish))
@@ -71,8 +71,11 @@ fun beans() = beans {
                 GET("/blocks", {
                     ok().body(getBlocks().map { mapOf("blocks" to it, "blockHeight" to it.size) })
                 })
+            }
+
+            with(eventPublisher) {
                 GET("/events", {
-                    ok().contentType(APPLICATION_STREAM_JSON).body(eventPublisher.events())
+                    ok().contentType(APPLICATION_STREAM_JSON).body(events())
                 })
             }
         }
