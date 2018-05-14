@@ -30,7 +30,7 @@ import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
 
 @SpringBootApplication
-class ReactiveKotlinChainApplication
+class Application
 
 fun beans() = beans {
     bean {
@@ -67,7 +67,7 @@ fun beans() = beans {
 }
 
 fun main(args: Array<String>) {
-    runApplication<ReactiveKotlinChainApplication>(*args){
+    runApplication<Application>(*args){
         addInitializers(beans())
     }
 }
