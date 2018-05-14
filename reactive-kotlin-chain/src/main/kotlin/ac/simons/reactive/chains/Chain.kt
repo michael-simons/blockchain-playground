@@ -90,7 +90,7 @@ class Chain(
 
     fun mine(): Mono<Block> {
         val storeBlock = { it: Block ->
-            blocks + it
+            blocks += it
             blockCounter.increment()
         }
 
