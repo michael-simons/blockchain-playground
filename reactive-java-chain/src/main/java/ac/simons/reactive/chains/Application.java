@@ -30,14 +30,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import reactor.core.publisher.Mono;
 
 @SpringBootApplication
-public class ReactiveJavaChainApplication {
+public class Application {
 
 	@Bean
 	public MeterRegistryCustomizer<?> commonTagsCustomizer(@Value("${spring.application.name}") final String applicationName) {
@@ -65,6 +64,6 @@ public class ReactiveJavaChainApplication {
 	}
 
 	public static void main(String[] args) {
-		SpringApplication.run(ReactiveJavaChainApplication.class, args);
+		SpringApplication.run(Application.class, args);
 	}
 }
