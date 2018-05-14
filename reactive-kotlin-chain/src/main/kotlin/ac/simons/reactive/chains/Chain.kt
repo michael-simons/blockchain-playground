@@ -44,6 +44,11 @@ data class Block(
 )
 
 /**
+ * This chains status
+ */
+data class Status(val nodeId: String, val currentBlockHeight: Int)
+
+/**
  * The genesis block supplier.
  */
 fun genesisBlock() =
@@ -62,6 +67,11 @@ class Chain(
     companion object {
         val objectMapper = ObjectMapper()
     }
+
+    /**
+     * This chains id.
+     */
+    private val nodeId = UUID.randomUUID().toString()
 
     /**
      * Blocks that are currently being mined.
@@ -127,6 +137,8 @@ class Chain(
     }
 
     fun getBlocks() = Mono.just(this.blocks.toList())
+
+    fun getStatus() = Mono.just(Status(this.nodeId, this.blocks.size))
 
     internal fun selectTransactions(maxNumberOfTransactions: Int) = (1..maxNumberOfTransactions)
         .map { pendingTransactions.poll() }

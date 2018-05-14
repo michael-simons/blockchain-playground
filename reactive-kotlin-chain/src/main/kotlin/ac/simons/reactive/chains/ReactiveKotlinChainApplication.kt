@@ -35,13 +35,14 @@ class ReactiveKotlinChainApplication
 fun beans() = beans {
     bean {
         MeterRegistryCustomizer<MeterRegistry> { registry ->
-            registry.config().commonTags("application", ref<Environment>().getProperty("spring.application.name"))
+            registry.config().commonTags("application", ref<Environment>().getProperty("spring.application.name", "unknown"))
         }
     }
 
     bean {
         with(Chain()) {
             router {
+                GET("/", { ok().body(getStatus()) })
                 GET("/mine", {
                     status(CREATED).body(mine())
                 })
@@ -64,7 +65,6 @@ fun beans() = beans {
         }
     }
 }
-
 
 fun main(args: Array<String>) {
     runApplication<ReactiveKotlinChainApplication>(*args){
