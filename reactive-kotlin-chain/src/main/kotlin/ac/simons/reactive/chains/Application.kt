@@ -22,6 +22,7 @@ import org.springframework.boot.runApplication
 import org.springframework.context.support.beans
 import org.springframework.core.env.Environment
 import org.springframework.http.HttpStatus.CREATED
+import org.springframework.http.MediaType.APPLICATION_STREAM_JSON
 import org.springframework.web.reactive.function.server.ServerResponse.*
 import org.springframework.web.reactive.function.server.body
 import org.springframework.web.reactive.function.server.bodyToMono
@@ -33,33 +34,45 @@ import reactor.core.publisher.Mono
 class Application
 
 fun beans() = beans {
+
+    // Customize metrics by adding the applications name
     bean {
         MeterRegistryCustomizer<MeterRegistry> { registry ->
             registry.config().commonTags("application", ref<Environment>().getProperty("spring.application.name", "unknown"))
         }
     }
 
+    // Some JSON customization
+    bean<EventModule>()
+
+    // Routing to the chain
     bean {
         with(Chain()) {
+            // Events are not published from within the chain but from within this application
+            // So no need to dependency inject anything into the chain.
+            val eventPublisher = EventPublisher()
+
             router {
                 GET("/", { ok().body(getStatus()) })
                 GET("/mine", {
-                    status(CREATED).body(mine())
+                    status(CREATED).body(mine().doOnNext(eventPublisher::publish))
                 })
                 POST("/transactions", { request ->
                     request.bodyToMono<String>()
-                        .flatMap { queue(it) }
-                        .flatMap {
-                            created(
-                                UriComponentsBuilder.fromUri(request.uri())
-                                    .pathSegment("{id}")
-                                    .buildAndExpand(mapOf("id" to it.id)).encode().toUri()
-                            )
-                                .body(Mono.just(it))
-                        }
+                            .flatMap { queue(it) }
+                            .doOnNext(eventPublisher::publish)
+                            .flatMap {
+                                created(UriComponentsBuilder.fromUri(request.uri())
+                                        .pathSegment("{id}")
+                                        .buildAndExpand(mapOf("id" to it.id)).encode().toUri()
+                                ).body(Mono.just(it))
+                            }
                 })
                 GET("/blocks", {
                     ok().body(getBlocks().map { mapOf("blocks" to it, "blockHeight" to it.size) })
+                })
+                GET("/events", {
+                    ok().contentType(APPLICATION_STREAM_JSON).body(eventPublisher.events())
                 })
             }
         }
@@ -67,7 +80,7 @@ fun beans() = beans {
 }
 
 fun main(args: Array<String>) {
-    runApplication<Application>(*args){
+    runApplication<Application>(*args) {
         addInitializers(beans())
     }
 }
