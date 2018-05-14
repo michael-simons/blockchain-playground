@@ -36,6 +36,10 @@ compileTestKotlin {
     }
 }
 
+test {
+    useJUnitPlatform()
+}
+
 idea {
     module {
         outputDir file('build/classes/main')
@@ -54,7 +58,13 @@ dependencies {
     compile('com.fasterxml.jackson.module:jackson-module-kotlin')
     compile("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     compile("org.jetbrains.kotlin:kotlin-reflect")
+
     compileOnly('org.springframework.boot:spring-boot-configuration-processor')
-    testCompile('org.springframework.boot:spring-boot-starter-test')
+
+    testCompile('org.springframework.boot:spring-boot-starter-test') {
+        exclude module: 'junit'
+    }
+    testImplementation('org.junit.jupiter:junit-jupiter-api')
+    testRuntimeOnly('org.junit.jupiter:junit-jupiter-engine')
     testCompile('io.projectreactor:reactor-test')
 }
