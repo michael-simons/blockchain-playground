@@ -1,0 +1,703 @@
+= Micrometer: New insights into your Spring Boot application
+Michael Simons <michael.simons@innoq.com>
+:doctype: article
+:lang: de
+:listing-caption: Listing
+:source-highlighter: coderay
+:icons: font
+:sectlink: true
+:sectanchors: true
+:xrefstyle: short
+:tabsize: 4
+:toc: left
+:toclevels: 5
+
+== Michael Simons
+
+I'm working as a Senior Consultant at INNOQ, Germany. My first Spring project was around 2009, I have been using Spring Boot right from the start. I like writing a lot and I somehow became the author of the bestselling German book about https://www.amazon.de/Spring-Boot-Moderne-Softwareentwicklung-mit/dp/3864905257/[Spring 5 and Spring Boot 2] on Amazon last month.
+
+I do rant occasionally on https://twitter.com/@rotnroll666[Twitter] about stuff.
+
+== Ways to observe a system
+
+Today we'll speak a bit about one of three ways one can observce a system. Among them are
+
+* Logging
+* Tracing
+* and metrics
+
+While logging is usually about events happening in a system and tracing can mean a lot of things, metrics deal with measuring things.
+
+Usually you trace a request, a call stack or routes throughout your system. While doing so, you can measure the time a single request or a downsampled among of request takes to go through the system.
+
+Metrics however deals with aggregates of measurements, over system and over time. That means, you can answer the question how long requests took on average in the last minutes throughout your whole system and not how long one single request got stuck in one of your subsystems.
+
+Micrometer is all about collecting measurements and aggregating them into metrics.
+
+Today we are gonna speak about Micrometer.
+
+== Micrometer
+
+https://micrometer.io[Micrometer] is a new product or project by Pivotal. It's elevator pitch is "Like SLF4J but for metrics". Now most of us know that SLF4J is a logging facade. You can connect various logging systems to it and use various appenders with it. That's one aspect of Micrometer, too. It's a vendor neutral facade for various monitoring systems and provides an API to collect metrics for you.
+
+Furthermore, and that's the next common thing with SLF4: It provides a nice, clean way of retrieving meters to measure things, a globval factory method, much like all the logging system do.
+
+== How to get Micrometer into Spring Boot?
+
+=== How to get Micrometer into Spring Boot?
+
+Given a plain, old HTTP or RestController like this
+
+[source,java]
+[[MiningController]]
+.MiningController.java
+----
+public class MiningController {
+	private final Chain chain;
+
+	public MiningController(Chain chain) {
+		this.chain = chain;
+	}
+
+	@GetMapping("/mine")
+	public ResponseEntity<Block> mine() {
+		return ResponseEntity.status(CREATED).body(chain.mine().block());
+	}
+
+}
+----
+
+The only thing you have to do is adding the Spring Boot Actuator Starter into your application like this
+
+[source,xml]
+[[spring-boot-starter-actuator]]
+.pom.xml
+----
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+----
+
+In a good, old Spring Boot 1 application, this gives us the `/metrics` endpoint.
+
+After putting some load onto the application, for example with Apache Bench `ab -n 12 -c 4 -s 120 http://localhost:8080/mine`, the Metrics-Endpoint answers something like this
+
+[source,json]
+[[metrics-boot-1]]
+.Metrics in Spring Boot 1
+----
+{
+    "mem": 664619,
+    "mem.free": 327742,
+    "processors": 8,
+    "instance.uptime": 602975,
+    "uptime": 606611,
+    "systemload.average": 3.19677734375,
+    "heap.committed": 596480,
+    "heap.init": 262144,
+    "heap.used": 268737,
+    "heap": 3728384,
+    "nonheap.committed": 69472,
+    "nonheap.init": 2496,
+    "nonheap.used": 68142,
+    "nonheap": 0,
+    "threads.peak": 70,
+    "threads.daemon": 27,
+    "threads.totalStarted": 101,
+    "threads": 29,
+    "classes": 9472,
+    "classes.loaded": 9472,
+    "classes.unloaded": 0,
+    "gc.ps_scavenge.count": 7,
+    "gc.ps_scavenge.time": 74,
+    "gc.ps_marksweep.count": 2,
+    "gc.ps_marksweep.time": 66,
+    "httpsessions.max": -1,
+    "httpsessions.active": 0,
+    "datasource.primary.active": 0,
+    "datasource.primary.usage": 0.0,
+    "gauge.response.metrics": 2.0,
+    "gauge.response.motd": 3.0,
+    "gauge.response.star-star.favicon.ico": 8.0,
+    "counter.status.200.star-star.favicon.ico": 1,
+    "counter.status.200.metrics": 4,
+    "counter.status.200.mine": 1008
+}
+----
+
+You can drill down one metric with an call like
+
+[source,bash]
+[[drill-down-metrics-boot-1]]
+.Drilling down into a metric with Boot 1
+----
+curl http://localhost:8080/metrics/counter.status.200.metrics
+----
+
+and get some more detailed information.
+
+=== That changes a lot with Spring Boot 2
+
+The simple application - which represents a naive blockchain implementation we created at our last INNOQ internal event - can be easily upgrade. Just bump the version from 1.5.x to 2.0.x.
+
+Your whole application or service along with the management endpoint is now using Micrometer. Let's have a look.
+
+Now, try the `/metrics` endpoint again and end in a 404 error.
+
+Spring Boot Actuator has some new concepts in Spring Boot 2 as we might have already heard here in beautiful Barcelona. Endpoints are not longer sensitive or not and there is no explicit security for them in place.
+
+Instead there's a concept of having them enabled and expose. All endpoints except for the `/shutdown` endpoint are enabled by default, none but `/health` and `/info` are enabled.
+
+For this demo we expose all of them with
+
+[source,properties]
+[[expose-all-endpoints]]
+.Exposing all Spring Boot 2 management endpoints
+----
+management.endpoints.web.exposure.include = *
+----
+
+Furthermore the Management-Endpoints are now all prefixed with `/actuator`, so after we take this into account we can retrieve our metrics with `curl localhost:8080/actuator/metrics`.
+
+=== What happened to the nice format? 😳
+
+[source,json]
+[[metrics-boot-2]]
+.Metrics in Spring Boot 2
+----
+{
+    "names": [
+        "jvm.buffer.memory.used",
+        "jvm.memory.used",
+        "jvm.gc.memory.allocated",
+        "jvm.memory.committed",
+        "jdbc.connections.min",
+        "tomcat.sessions.created",
+        "tomcat.sessions.expired",
+        "hikaricp.connections.usage",
+        "tomcat.global.request.max",
+        "tomcat.global.error",
+        "http.server.requests",
+        "jvm.gc.max.data.size",
+        "logback.events",
+        "system.cpu.count",
+        "jvm.memory.max",
+        "jdbc.connections.active",
+        "jvm.buffer.total.capacity",
+        "jvm.buffer.count",
+        "process.files.max",
+        "jvm.threads.daemon",
+        "hikaricp.connections",
+        "process.start.time",
+        "hikaricp.connections.active",
+        "tomcat.global.sent",
+        "hikaricp.connections.creation.percentile",
+        "tomcat.sessions.active.max",
+        "tomcat.threads.config.max",
+        "jvm.gc.live.data.size",
+        "process.files.open",
+        "process.cpu.usage",
+        "hikaricp.connections.acquire",
+        "hikaricp.connections.timeout",
+        "tomcat.servlet.request",
+        "jvm.gc.pause",
+        "hikaricp.connections.idle",
+        "process.uptime",
+        "tomcat.global.received",
+        "system.load.average.1m",
+        "tomcat.cache.hit",
+        "hikaricp.connections.pending",
+        "hikaricp.connections.acquire.percentile",
+        "tomcat.servlet.error",
+        "tomcat.servlet.request.max",
+        "hikaricp.connections.usage.percentile",
+        "jdbc.connections.max",
+        "tomcat.cache.access",
+        "tomcat.threads.busy",
+        "tomcat.sessions.active.current",
+        "system.cpu.usage",
+        "jvm.threads.live",
+        "jvm.classes.loaded",
+        "jvm.classes.unloaded",
+        "jvm.threads.peak",
+        "tomcat.threads.current",
+        "tomcat.global.request",
+        "hikaricp.connections.creation",
+        "jvm.gc.memory.promoted",
+        "tomcat.sessions.rejected",
+        "tomcat.sessions.alive.max"
+    ]
+}
+----
+
+Compared to the Actuator 1 metrics endpoint, you'll only get a list of names and not a single, current value of any kind.
+
+=== Drill down is different, too… 🤔
+
+You know have to use one of the names to drill down into a metric, for example use `http.server.requests` to get your system-metric of how many request hammered your service. A curl call like `curl localhost:8080/actuator/metrics/http.server.requests` gets you:
+
+[source,json]
+[[drill-down-metrics-boot-2a]]
+.Drill down result of one metric
+----
+{
+    "name": "http.server.requests",
+    "measurements": [
+        {
+            "statistic": "COUNT",
+            "value": 509.0
+        },
+        {
+            "statistic": "TOTAL_TIME",
+            "value": 21.655494492999996
+        },
+        {
+            "statistic": "MAX",
+            "value": 0.012536956
+        }
+    ],
+    "availableTags": [
+        {
+            "tag": "exception",
+            "values": [
+                "None"
+            ]
+        },
+        {
+            "tag": "method",
+            "values": [
+                "GET"
+            ]
+        },
+        {
+            "tag": "uri",
+            "values": [
+                "/mine",
+                "/actuator/metrics/{requiredMetricName}",
+                "/**/favicon.ico",
+                "/actuator/flyway",
+                "/actuator/metrics"
+            ]
+        },
+        {
+            "tag": "status",
+            "values": [
+                "404",
+                "200"
+            ]
+        }
+    ]
+}
+----
+
+Now this gives use at least some information back, for example the total count of things, a total time and a max value. The metric we retrieved is a timer, containing all timed measurements, their total used time and the maximum number of measurements across a base unit.
+
+=== Dimensions all the way
+
+Drilling down further is possible as well and is realized with a tag, giving name and value like this: `curl localhost:8080/actuator/metrics/http.server.requests\?tag\=status:200 `
+
+The result gives us a sneak peek into the things in Micrometer:
+
+[source,json]
+[[drill-down-metrics-boot-2b]]
+.Drill down result of one metric, along one dimension
+----
+{
+    "name": "http.server.requests",
+    "measurements": [
+        {
+            "statistic": "COUNT",
+            "value": 511.0
+        },
+        {
+            "statistic": "TOTAL_TIME",
+            "value": 21.664119738999997
+        },
+        {
+            "statistic": "MAX",
+            "value": 0.0
+        }
+    ],
+    "availableTags": [
+        {
+            "tag": "exception",
+            "values": [
+                "None"
+            ]
+        },
+        {
+            "tag": "method",
+            "values": [
+                "GET"
+            ]
+        },
+        {
+            "tag": "uri",
+            "values": [
+                "/motd",
+                "/actuator/metrics/{requiredMetricName}",
+                "/**/favicon.ico",
+                "/actuator/flyway",
+                "/actuator/metrics"
+            ]
+        }
+    ]
+}
+----
+
+We can drill down along as many dimension as we want. As long as there are more dimensions, we get a list of available tags together with the result. Drilling down along multiple dimensions is done by repeating a tag like this: `curl localhost:8080/actuator/metrics/http.server.requests\?tag\=status:200\&tag\=uri:/mine`, the result being similar to Spring Boot 1 metrics.
+
+[source,json]
+[[drill-down-metrics-boot-2c]]
+.Drill down result of one metric, along several dimensions
+----
+{
+    "name": "http.server.requests",
+    "measurements": [
+        {
+            "statistic": "COUNT",
+            "value": 500.0
+        },
+        {
+            "statistic": "TOTAL_TIME",
+            "value": 21.543507905
+        },
+        {
+            "statistic": "MAX",
+            "value": 0.0
+        }
+    ],
+    "availableTags": [
+        {
+            "tag": "exception",
+            "values": [
+                "None"
+            ]
+        },
+        {
+            "tag": "method",
+            "values": [
+                "GET"
+            ]
+        }
+    ]
+}
+----
+
+== Core concepts
+
+Before looking into the API in some more detail, I want to present some of the core concepts of Micrometer. Credit, where Credit is due: Some of the ideas coming up in the next slide are not new, many of them notably found in http://metrics.dropwizard.io[Dropwizard Metrics].
+
+=== Core concepts
+
+The core concepts of Micrometer are
+
+* A sense of dimensionality
+* Multiple registries
+* The idea of a meter with different characteristics
+* A SPI for registry-implementations for different monitoring systems
+
+==== Dimensionality
+
+Probably one of the most important aspects of Micrometer and its meters is dimensionality.
+
+All metrics in Spring Boot 1 or for what it's worth in Dropwizard are hierarchical in nature. To be more precise, they have been mono-hierarchical and thus forming a *taxonomy*.
+
+The word taxonomy has a well set meaning in the world of biology and can be best represented like this:
+
+1. We have counter
+2. A status
+3. A concrete statuts
+4. And a concrete method
+
+for the metric how often a specific method has been called. That works okish.
+
+Things get a bit hairy thow when dealing with multiple hosts. Add it on top. And then you might want to add a region.
+
+And event a specific vendors cloud. If you want to query that metric with a pattern in your favorite dashboard application, you get screwed until you can upgrade all instances to have this metric. Meaning: You'll be flying blind for a time.
+
+==== From taxonomy to folksonomy
+
+A folksonomy is a classification system based on tags. The term folksonomy arose in 2004, when blogging and tag clouds where a thing.
+
+Wikipedia highlights the following advantages among others
+
+* The vocabulary of a folksonomy is a reflection of the users vocabulary itself
+* Folksonomies are flexible in a way that a user can add or remove tags at will
+* And folksonomies are multidimensional by nature, one thing can have several and any combination of tags assigned
+
+Tags are what Micrometer actually uses. They form a dimension of a metric, independent of the metrics type.
+
+As such we can directly address those things in the previous slide, like adding the instance, the region or even the cloud as tags to a metric without having to change the classification system.
+
+==== Creating tags
+
+Tags can be added as global, common tags or on a given metric instance itself, like on this timer
+
+[source,java]
+[[metrics-on-a-timer]]
+.Metrics on a timer
+----
+Timer.builder("presentation.slide.timer")
+	.description("This is a timer.")
+	.tags(
+		"conference", "Spring I/O",
+		"place", "Barcelona"
+	)
+	.register(meterRegistry);
+----
+
+or on a Guage
+
+[source,java]
+[[metrics-on-a-gauge]]
+.Metrics on a timer
+----
+Gauge.builder("jvm.memory.used", Runtime.getRuntime(), r -> r.totalMemory() - r.freeMemory())
+	.tag("host", "chronos")
+	.tag("region", "my-desk")
+	.register(meterRegistry);
+----
+
+Those tags or dimensions than can be used to query this dimensional data in a monitoring system that supports dimensions or as show in the slides before.
+
+=== Registries
+
+A registry is Micrometers interface for collecting sets of measurements. None of the meters we're gonna see in a minute will actually measure things without being added to a registry. Actually, they cannot even be created without one.
+
+Furthermore, there's an implementation of a registry for every supported monitoring system.
+
+Let's have a closer look.
+
+==== Registries
+
+===== Simple registry
+
+We have the simple registry:
+
+[source,java]
+[[simple-registry]]
+.Getting a simple registry
+----
+MeterRegistry registry = new SimpleMeterRegistry();
+----
+
+Use this if you only want to use some metrics and look at them while your service is running. A simple registry holds the latest value of each registered meter in memory and doesn't export it anywhere. The simple registry is the default registry you get when you add Spring Boot actuator to a Spring Boot application.
+
+If you add only one concrete implementation to your service like `micrometer-registry-atlas`, then you'll get that concrete instance, in this case `AtlasMeterRegistry` and so on.
+
+===== Composite registry
+
+A composite registry holds one or more registries and each of them can be of a different type.
+
+When you instantiate a composite registry like in the following listing, it's actually a registry that boils down to noop operations only.
+
+[source,java]
+[[composite-registry]]
+.Getting and using a composite registry
+----
+CompositeMeterRegistry composite = new CompositeMeterRegistry();
+
+Counter counter = composite.counter("counter");
+counter.increment(); // noop
+
+SimpleMeterRegistry simple = new SimpleMeterRegistry();
+composite.add(simple);
+counter.increment(); // now stuff happens
+----
+
+The composite registry is an important building block for the
+
+===== Global registry
+
+The global registry is actually a static attribute of the `Metrics` utility class and acts pretty much like global logger factories in SLF4J, Log4j and others.
+
+You just can reference the instance like
+
+[source,java]
+[[global-registry]]
+.Referencing the global registry
+----
+MeterRegistry registry = Metrics.globalRegistry;
+----
+
+The global registry is special. It is by default an empty, composite registry.
+
+The global registry can be however the source of metrics everywhere. And that's where Micrometers catchy phase "like SLF4J but for metrics" makes a lot more sense than only in regards having multiple implementors of their SPI.
+
+So given the information on the previous slide it should be clear, that every meter registered with it does nothing as long as you don't add something to it. We'll see this later in the demo.
+
+Good thing, though: Spring boot adds its own registry, wether its a simple, a concrete implementation of also a composite, to the global registry.
+
+That way, you can use Micrometer meters without any annotation :)
+
+If you don't want Spring Boot to push it's registry to the global one, use the following setting to disable this:
+
+[source,properties]
+[[dont-use-global-reg]]
+.Disable usage of global registry
+----
+management.metrics.use-global-registry=false
+----
+
+=== Metrics: Measurement of meters over time
+
+Now that we have a registry to store metrics, we got create some and register them. A metric is a measurement of meters over time. So what kind of different meters are there to be measured?
+
+==== Counter
+
+Let's start with the most basic one. A counter. That thing on the picture is actually called a "tally counter." It's not quite accurate, as the tally counter can be reset to zero whereas Micrometers counter only goes upwards. Use a counter only if you only want to count things. If you're timing computation anyway, use the <<Timer>>.
+
+==== Gauges
+
+A gauge reassembles a classical instrument the most. It display a value at a given point and usually a Gauge has an upper limit (So, don't use a Gauge when you have none, have a look at <<Counter>> instead).
+
+Also, Gauges are usually sampled and not set by you. That means, a gauge observes values and you hardly interact with a gauge on your own.
+
+==== Timer
+
+A timer is used to measure short or medium durations and also frequencies of events. All timer report the total time recorded and also the count of recordings.
+
+Timer can record block as code in various forms. Either throughout suppliers, callables and runnables.
+
+There is an AspectJ-implementation for a `@Timed` annotation. The `@Timed` annotion is not recognized out of the box by boot. This says a lot about the goals of Micrometer in regards of doing stuff only with annotations I think.
+
+=== Demo
+
+Let's finish this section with a short demo of the core concepts.
+
+== What's next?
+
+Now that you know the basic building blocks of Micrometer, we can evaluate what's next. Let's see if we can group metrics themselves
+
+=== Three different kind of metrics
+
+We have 3 different levels of detail and knowledge
+
+* System metrics
+* Application metrics
+* Domain metrics (or KPIs)
+
+==== System metrics
+
+We start with the system metrics: System metrics are very low level. CPU and memory usage as well as thread count etc. are part of system metrics.
+
+Micrometer provides you - either standalone or automatically - with the following http://micrometer.io/docs/ref/jvm[system metrics]:
+
+[source,java]
+[[system-metrics]]
+.Various system metrics
+----
+new ClassLoaderMetrics().bindTo(registry);
+new JvmMemoryMetrics().bindTo(registry);
+new JvmGcMetrics().bindTo(registry);
+new ProcessorMetrics().bindTo(registry);
+new JvmThreadMetrics().bindTo(registry);
+----
+
+==== Application metrics with Spring Boot
+
+Application metrics reside on the next level. Among them are usually the number of HTTP requests, inbound as well as outbound. Cache hits and misses, datasource usage or the number of exceptions.
+
+With Spring Boot, Micrometer is setup in a way that you get all the metrics above and at the following - depending on your class path - as well:
+
+Micrometer gives you most of them together with Spring Boot. Those are
+
+* Spring MVC
+* Spring WebFlux
+* RestTemplate
+* Spring Integration
+* Rabbit MQ
+
+At this point you'll get a deep insight into your application already.
+
+==== Domain metrics (or KPIs)
+
+This is where stuff get's really interesting. Domain metrics or Key Performance indicators are metrics like "how many products did I sell the last hour" or "how many customer did I loose due to a bad checkout experience" or "How many pending customers are there?"
+
+=== Demo
+
+This demo shows the system and application metrics you'll get with Micrometer and Spring Boot 2. After, we will add your own domain metrics into the mix and in such a way that it won't bother us in tests etc.
+
+== Monitoring
+
+Monitoring happens on a different level than collecting metrics. One or the other makes no sense without the other.
+
+Micrometers next similarity with a logging facade it's the possibility connect it to a lot of different monitoring systems. Together with Spring Boot this is done automatically for you by adding a dependency.
+
+Micrometer also has a concept of adapting the names of meters for you to the needs of different systems.
+
+Questions that have to be answered are the following:
+
+=== Where to store this?
+
+Micrometer does not select a monitoring system for you but postprocesses the metrics in a way for you to make them compatible with a lot of systems.
+
+==== Supported dimensional monitoring systems
+
+There are a lot of dimensional monitoring systems that support tags one way or the other out of the box.
+
+==== Supported hierarchical monitoring systems
+
+For some of the older systems, especially like JMX, Micrometer still makes use of Dropwizards JMX exporter.
+
+=== How to store this?
+
+This at the point of writing a simple to answer questions. How to store this relates in this case to the way data gets into the monitoring system: Either through pushes to it or by polling the application.
+
+==== Push model
+
+Most monitoring systems use the push model.
+
+If you add such a registry to your application, there's usually a new configurational property to configure URLs, ports and stuff of your monitoring system.
+
+==== Poll model
+
+Right now, only Prometheus, which is used quit heavily those days, polls the application and systems being monitored.
+
+By adding the Prometheus registry `micrometer-registry-prometheus` to your project, you'll get a new management endpoint, `/actuator/prometheus`, that can be configured like this
+
+[source,yaml]
+[[PrometheusConfig]]
+.prometheus.yml
+----
+scrape_configs:
+  - job_name: 'reactive-java-chain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8080']
+  - job_name: 'reactive-kotlin-chain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8090']
+----
+
+=== Demo
+
+In this last demo I'm gonna show you exactly this configuration and how one can make use of multidimensional metrics coming from Spring Boot with Micrometer and going into Prometheus.
+
+== Closing notes
+
+As we have seen throughout the demo, Micrometer is not bound to Spring Boot 2 at all. It is certainly more fun to use it together, but not necessary.
+
+There's even a legacy integration project for Spring Boot 1 which can easily be added:
+
+[source,xml]
+[[micrometer-spring-boot-1]]
+.Adding Micrometer to Spring Boot 1
+----
+<dependency>
+	<groupId>io.micrometer</groupId>
+	<artifactId>micrometer-spring-legacy</artifactId>
+	<version>${micrometer.version}</version>
+</dependency>
+----
+
+The version has to be added to your legacy Spring Boot service, its not part of dependency management.
+
+== Resources
+
+Thank you for your time, I hope you got some new insights in my talk. I have the demo at https://github.com/michael-simons/blockchain-playground[Github] which contains the complete talk and my manuscript as well. Slides are in my https://speakerdeck.com/michaelsimons[Speakerdeck].
+
+If you can read German or want to learn it, get a copy of my book, too :)

@@ -47,7 +47,7 @@ tasks.withType(AsciidoctorTask) { docTask ->
           'sourceDir': "$projectDir/src/"
 
     sourceDir = new File("src/talk")
-    outputDir = new File(project.buildDir, "talk")	
+    outputDir = new File(project.buildDir, "talk")
     resources {
         from(sourceDir) {
             include '*.png'
