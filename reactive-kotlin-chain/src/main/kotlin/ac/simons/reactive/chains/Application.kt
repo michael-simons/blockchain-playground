@@ -58,6 +58,8 @@ fun beans() = beans {
 
     // Routing and control flow
     bean {
+        val chain = Chain()
+
         // Events are not published from within the chain but from within this application
         // So no need to dependency inject anything into the chain.
         val eventPublisher = EventPublisher()
@@ -68,7 +70,7 @@ fun beans() = beans {
                 .subscribe {
                     when(it) {
                         is NewBlockEvent -> println("New block on other node")
-                        is NewTransactionEvent -> println("New transaction on other node")
+                        is NewTransactionEvent -> chain.queue(it.data)
                         is NewNodeEvent -> throw IllegalArgumentException()
                     }
                 }
@@ -76,7 +78,7 @@ fun beans() = beans {
         val nodeRegistry = NodeRegistry(ref())
 
         router {
-            with(Chain()) {
+            with(chain) {
                 GET("/", { ok().body(getStatus()) })
                 GET("/mine", {
                     status(CREATED).body(mine().doOnNext(eventPublisher::publish))

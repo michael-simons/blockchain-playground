@@ -26,6 +26,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.function.Supplier
+import java.util.logging.Logger
 
 /**
  * A transaction with a payload.
@@ -66,6 +67,7 @@ class Chain(
 
     companion object {
         val objectMapper = ObjectMapper()
+        val log = Logger.getLogger(Chain::class.qualifiedName!!)
     }
 
     /**
@@ -96,6 +98,13 @@ class Chain(
         val pendingTransaction = Transaction(UUID.randomUUID().toString(), clock.millis(), payload)
         pendingTransactions.add(pendingTransaction)
         pendingTransaction
+    }
+
+    fun queue(transaction: Transaction) {
+        if(!hasTransaction(transaction)) {
+            pendingTransactions += transaction
+            log.info { "Added transaction " +  transaction.id }
+        }
     }
 
     fun mine(): Mono<Block> {
@@ -150,4 +159,7 @@ class Chain(
             .run(::digest)
             .run(::encode)
     })
+
+    internal fun hasTransaction(transaction: Transaction) =
+            this.pendingTransactions.find { it.id == transaction.id } != null
 }
