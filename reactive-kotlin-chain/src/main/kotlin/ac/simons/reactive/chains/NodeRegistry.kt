@@ -15,11 +15,26 @@
  */
 package ac.simons.reactive.chains
 
+import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.bodyToFlux
+import reactor.core.publisher.EmitterProcessor
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import java.util.*
+
 /**
  * Representation of a node.
  */
-data class Node(val id: String, val host: String)
+data class Node(val id: String, val host: String, private val webClient: WebClient) {
+    fun listenTo() = webClient.get().uri("/events").retrieve().bodyToFlux<Event<*>>()
+}
 
-class NodeRegistry() {
+class NodeRegistry(private val webClientBuilder: WebClient.Builder = WebClient.builder()) {
     private val nodes = mutableSetOf<Node>()
+
+    fun register(host: String) = Mono.fromSupplier {
+        val newNode = Node(UUID.randomUUID().toString(), host, webClientBuilder.baseUrl(host).build())
+        nodes += newNode
+        newNode
+    }
 }
