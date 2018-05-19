@@ -15,8 +15,11 @@
  */
 package ac.simons.reactive.chains
 
+import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.EmitterProcessor
 import reactor.core.publisher.Flux
+import reactor.core.publisher.FluxSink
+import reactor.core.publisher.FluxSink.OverflowStrategy
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -36,7 +39,7 @@ data class NewNodeEvent(override val id: Int, override val data: Node) : Event<N
 class EventPublisher() {
     private val idGenerator = AtomicInteger()
     private val eventStream = EmitterProcessor.create<Event<*>>(false)
-    private val eventSink = eventStream.sink()
+    private val eventSink = eventStream.sink(OverflowStrategy.LATEST)
 
     fun publish(data: Any) {
         val nextId = idGenerator.incrementAndGet()
