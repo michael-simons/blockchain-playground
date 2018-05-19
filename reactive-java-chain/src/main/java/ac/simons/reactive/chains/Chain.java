@@ -87,17 +87,20 @@ public class Chain {
 	/**
 	 * A queue with pending transactions.
 	 */
-	private final Queue<Transaction> pendingTransactions;
+	private final Queue<Transaction> pendingTransactions = Metrics.gauge(
+		"chain.transactions.pending",
+		new PriorityBlockingQueue<>(64, Comparator.comparingLong(Transaction::getTimestamp)),
+		Queue::size);
 
 	/**
 	 * A meter timing the computation of hashes.
 	 */
-	private final Timer hashTimer;
+	private final Timer hashTimer = Metrics.timer("chain.hashes");
 
 	/**
 	 * A meter counting the number of mined blocks.
 	 */
-	private final Counter blockCounter;
+	private final Counter blockCounter = Metrics.counter("chain.blocks.computed");
 
 	public static Chain defaultChain() {
 		final ObjectMapper objectMapper = new ObjectMapper();
@@ -113,17 +116,6 @@ public class Chain {
 	private Chain(Block genesisBlock, final Function<Block, byte[]> blockToJson) {
 		this.blocks.add(genesisBlock);
 		this.blockToJson = blockToJson;
-
-		// Prepare metrics
-		// We directly interact with timers and counters, so we need their instances
-		this.hashTimer = Metrics.timer("chain.hashes");
-		this.blockCounter = Metrics.counter("chain.blocks.computed");
-
-		// The gauge however only observes values and we should not interact with it directly
-		this.pendingTransactions = Metrics.gauge(
-				"chain.transactions.pending",
-				new PriorityBlockingQueue<>(64, Comparator.comparingLong(Transaction::getTimestamp)),
-				Queue::size);
 	}
 
 	public Mono<Transaction> queue(final String payload) {

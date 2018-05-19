@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class Demo {
@@ -57,14 +58,17 @@ public class Demo {
 			)
 			.register(meterRegistry);
 
+		Supplier<String> slideSupplier = () -> {
+			try {
+				Thread.sleep((long) (1_000 * ThreadLocalRandom.current().nextDouble()));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			return "Next slide";
+		};
+
 		Stream.iterate(1, i -> i <= 3, i -> i + 1).forEach(i ->
-			slideTimer.record(() -> {
-				try {
-					Thread.sleep((long) (1_000 * ThreadLocalRandom.current().nextDouble()));
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			})
+			System.out.println(slideTimer.record(slideSupplier))
 		);
 
 		System.out.println(slideTimer.max(TimeUnit.SECONDS));
