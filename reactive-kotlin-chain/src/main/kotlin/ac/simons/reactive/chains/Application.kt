@@ -97,18 +97,16 @@ fun beans() = beans {
                         .subscribe { socket.send(it) }
 
                 // register with nodes that are announced against this node
-                Flux.create<DatagramPacket> { emitter ->
-                    while (true) {
+                Flux.generate<DatagramPacket> { emitter ->
                         val dp = DatagramPacket(ByteArray(8192), 8129)
                         socket.receive(dp)
                         emitter.next(dp)
-                    }
                 }.subscribeOn(Schedulers.elastic())
                         .flatMap { readSSDPAlivePacket(it) }
                         .filter { it.isNotBlank() }
                         .flatMap { nodeRegistry.register(it) }
                         .doOnNext{ ref<EventPublisher>().publish(it) }
-                        .subscribe { logger.info { "Registered to new node ${it}" } }
+                        .subscribe { logger.info { "Registered new node ${it}" } }
             }
         }
     }
