@@ -73,7 +73,7 @@ class Chain(
     /**
      * This chains id.
      */
-    private val nodeId = UUID.randomUUID().toString()
+    val nodeId = UUID.randomUUID().toString()
 
     /**
      * Blocks that are currently being mined.

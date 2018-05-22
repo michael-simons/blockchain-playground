@@ -17,24 +17,50 @@ package ac.simons.reactive.chains
 
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.bodyToFlux
-import reactor.core.publisher.EmitterProcessor
+import org.springframework.web.reactive.function.client.bodyToMono
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import java.util.*
 
 /**
  * Representation of a node.
  */
-data class Node(val id: String, val host: String, private val webClient: WebClient) {
-    fun listenTo() = webClient.get().uri("/events").retrieve().bodyToFlux<Event<*>>()
+data class Node(val id: String, val host: String)
+
+/**
+ * Used for retrieving events from a node
+ */
+class NodeClient(base: WebClient) : WebClient by base {
+    var active = false
+
+    fun retrieveEvents() : Flux<Event<*>> {
+        active = true
+        return get().uri("/events").retrieve().bodyToFlux<Event<*>>()
+    }
 }
 
-class NodeRegistry(private val webClientBuilder: WebClient.Builder = WebClient.builder()) {
+class NodeRegistry(
+        private val webClientBuilder: WebClient.Builder = WebClient.builder()
+) {
     private val nodes = mutableSetOf<Node>()
 
-    fun register(host: String) = Mono.fromSupplier {
-        val newNode = Node(UUID.randomUUID().toString(), host, webClientBuilder.baseUrl(host).build())
-        nodes += newNode
-        newNode
-    }
+    private val nodeClients = mutableMapOf<String, NodeClient>()
+
+    /**
+     * Registers the given host to the registry and creates a webclient for it.
+     */
+    fun register(host: String) = if (nodes.find { it.host == host } != null) Mono.empty() else
+        Mono.just(webClientBuilder.baseUrl(host).build())
+                .flatMap { client ->
+                    client.get().retrieve().bodyToMono<Status>()
+                            .map { Node(it.nodeId, host) }
+                            .doOnSuccess {
+                                nodes += it
+                                nodeClients += it.id to NodeClient(client)
+                            }
+                }
+
+    fun listenTo(node: Node) = nodeClients[node.id]
+            ?.takeUnless { it.active }
+            ?.let { it.retrieveEvents() } ?: Flux.empty()
+
 }
