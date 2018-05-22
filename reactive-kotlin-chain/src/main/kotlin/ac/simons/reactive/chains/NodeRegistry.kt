@@ -20,6 +20,7 @@ import org.springframework.web.reactive.function.client.bodyToFlux
 import org.springframework.web.reactive.function.client.bodyToMono
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.util.logging.Logger
 
 /**
  * Representation of a node.
@@ -45,6 +46,10 @@ class NodeRegistry(
 
     private val nodeClients = mutableMapOf<String, NodeClient>()
 
+    companion object {
+        val log = Logger.getLogger(NodeRegistry::class.qualifiedName!!)
+    }
+
     /**
      * Registers the given host to the registry and creates a webclient for it.
      */
@@ -61,6 +66,11 @@ class NodeRegistry(
 
     fun listenTo(node: Node) = nodeClients[node.id]
             ?.takeUnless { it.active }
-            ?.let { it.retrieveEvents() } ?: Flux.empty()
+            ?.let { it.retrieveEvents().doOnError { unregister(node) } } ?: Flux.empty()
 
+    internal fun unregister(node: Node) {
+        log.info{ "Removed node ${node}" }
+        nodeClients.remove(node.id)
+        nodes.remove(node)
+    }
 }

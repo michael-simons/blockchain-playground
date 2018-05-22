@@ -38,6 +38,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.net.DatagramPacket
 import java.net.InetAddress
+import java.time.Duration
 import java.util.logging.Logger
 
 @SpringBootApplication
@@ -74,8 +75,9 @@ fun beans() = beans {
 
             // Listen for events on other nodes
             ref<EventPublisher>().events().filter { it is NewNodeEvent }
-                    .doOnNext { println(it) }
-                    .flatMap { nodeRegistry.listenTo((it as NewNodeEvent).data) }
+                    .flatMap {
+                        nodeRegistry.listenTo((it as NewNodeEvent).data)
+                    }
                     .subscribe {
                         when (it) {
                             is NewBlockEvent -> logger.fine { "New block on other node" }
@@ -90,7 +92,9 @@ fun beans() = beans {
 
             with(ref<Chain>()) {
                 // Publish local port and address of this instance on the network and also
-                socket.send(createSSDPAlivePacket(address, serverProperties.port))
+                Flux.interval(Duration.ofSeconds(10))
+                        .map { createSSDPAlivePacket(address, serverProperties.port) }
+                        .subscribe { socket.send(it) }
 
                 // register with nodes that are announced against this node
                 Flux.create<DatagramPacket> { emitter ->
@@ -140,7 +144,6 @@ fun beans() = beans {
                     request.bodyToMono<String>()
                             .flatMap { register(it) }
                             .doOnNext(eventPublisher::publish)
-                            .doOnNext { println("what the fuck?!") }
                             .flatMap { ok().body(Mono.just(it)) }
                 })
             }
