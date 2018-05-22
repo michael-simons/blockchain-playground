@@ -62,15 +62,16 @@ class NodeRegistry(
                                 nodes += it
                                 nodeClients += it.id to NodeClient(client)
                             }
-                }
+                }.doOnError { Mono.empty<Node>() }
 
     fun listenTo(node: Node) = nodeClients[node.id]
             ?.takeUnless { it.active }
             ?.let { it.retrieveEvents().doOnError { unregister(node) } } ?: Flux.empty()
 
-    internal fun unregister(node: Node) {
+    internal fun unregister(node: Node): Flux<Node> {
+        nodeClients -= node.id
+        nodes -= node
         log.info{ "Removed node ${node}" }
-        nodeClients.remove(node.id)
-        nodes.remove(node)
+        return Flux.empty()
     }
 }
