@@ -46,27 +46,6 @@ Furthermore, and that's the next common thing with SLF4: It provides a nice, cle
 
 === How to get Micrometer into Spring Boot?
 
-Given a plain, old HTTP or RestController like this
-
-[source,java]
-[[MiningController]]
-.MiningController.java
-----
-public class MiningController {
-	private final Chain chain;
-
-	public MiningController(Chain chain) {
-		this.chain = chain;
-	}
-
-	@GetMapping("/mine")
-	public ResponseEntity<Block> mine() {
-		return ResponseEntity.status(CREATED).body(chain.mine().block());
-	}
-
-}
-----
-
 The only thing you have to do is adding the Spring Boot Actuator Starter into your application like this
 
 [source,xml]
