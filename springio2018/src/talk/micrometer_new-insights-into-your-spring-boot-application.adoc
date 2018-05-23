@@ -124,9 +124,9 @@ Your whole application or service along with the management endpoint is now usin
 
 Now, try the `/metrics` endpoint again and end in a 404 error.
 
-Spring Boot Actuator has some new concepts in Spring Boot 2 as we might have already heard here in beautiful Barcelona. Endpoints are not longer sensitive or not and there is no explicit security for them in place.
+Spring Boot Actuator has some new concepts in Spring Boot 2 as we might have already heard here in beautiful Barcelona. Endpoints are no longer sensitive or not and there is no explicit security for them in place.
 
-Instead there's a concept of having them enabled and expose. All endpoints except for the `/shutdown` endpoint are enabled by default, none but `/health` and `/info` are enabled.
+Instead there's a concept of having them enabled and exposed. All endpoints except for the `/shutdown` endpoint are enabled by default, none but `/health` and `/info` are enabled.
 
 For this demo we expose all of them with
 
@@ -392,9 +392,9 @@ The word taxonomy has a well set meaning in the world of biology and can be best
 
 for the metric how often a specific method has been called. That works okish.
 
-Things get a bit hairy thow when dealing with multiple hosts. Add it on top. And then you might want to add a region.
+Things get a bit hairy though when dealing with multiple hosts. Add it on top. And then you might want to add a region.
 
-And event a specific vendors cloud. If you want to query that metric with a pattern in your favorite dashboard application, you get screwed until you can upgrade all instances to have this metric. Meaning: You'll be flying blind for a time.
+And even a specific vendors cloud. If you want to query that metric with a pattern in your favorite dashboard application, you get screwed until you can upgrade all instances to have this metric. Meaning: You'll be flying blind for a time.
 
 ==== From taxonomy to folksonomy
 
