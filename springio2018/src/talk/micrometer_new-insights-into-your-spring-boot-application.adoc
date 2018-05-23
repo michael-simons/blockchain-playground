@@ -212,7 +212,7 @@ Furthermore the Management-Endpoints are now all prefixed with `/actuator`, so a
 
 Compared to the Actuator 1 metrics endpoint, you'll only get a list of names and not a single, current value of any kind.
 
-=== Drill down is different, too… 🤔
+=== Now we have „real“ drill down…
 
 You know have to use one of the names to drill down into a metric, for example use `http.server.requests` to get your system-metric of how many request hammered your service. A curl call like `curl localhost:8080/actuator/metrics/http.server.requests` gets you:
 
