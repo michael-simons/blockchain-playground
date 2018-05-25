@@ -92,7 +92,9 @@ class Chain(
 
     private val hashTimer = Metrics.timer("chain.hashes")
 
-    private val blockCounter = Metrics.counter("chain.blocks.computed")
+    fun getLength() = this.blocks.size
+
+    fun getNumberOfPendingTransactions() = this.pendingTransactions.size
 
     fun queue(payload: String) = Mono.fromSupplier {
         val pendingTransaction = Transaction(UUID.randomUUID().toString(), clock.millis(), payload)
@@ -108,11 +110,6 @@ class Chain(
     }
 
     fun mine(): Mono<Block> {
-        val storeBlock = { it: Block ->
-            blocks += it
-            blockCounter.increment()
-        }
-
         val toTemplate = { it: Block ->
             it.copy(
                 index = it.index + 1,
@@ -136,7 +133,7 @@ class Chain(
             val miner = (pendingBlocks.poll() ?: Mono.just(blocks.last()))
                 .map(toTemplate)
                 .flatMap(toNextBlock)
-                .doOnSuccess(storeBlock)
+                .doOnSuccess {blocks += it}
                 // This is paramount. The mono gets replayed on each subscription
                 .cache()
             // Add it to the pending blocks in any case.

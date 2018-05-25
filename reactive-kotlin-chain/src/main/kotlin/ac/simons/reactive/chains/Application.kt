@@ -15,6 +15,8 @@
  */
 package ac.simons.reactive.chains
 
+import io.micrometer.core.instrument.FunctionCounter
+import io.micrometer.core.instrument.Gauge
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -39,6 +41,7 @@ import reactor.core.scheduler.Schedulers
 import java.net.DatagramPacket
 import java.net.InetAddress
 import java.time.Duration
+import java.util.function.ToDoubleFunction
 import java.util.logging.Logger
 
 @SpringBootApplication
@@ -63,7 +66,19 @@ fun beans() = beans {
 
     bean("nodeRegistery") { NodeRegistry(ref()) }
 
-    bean("chain") { Chain() }
+    bean("chain") {
+        Chain().also {
+            val meterRegistry = ref<MeterRegistry>()
+
+            FunctionCounter.builder("chain.blocks.computed", it, { it.getLength().toDouble() })
+                    .baseUnit("block")
+                    .register(meterRegistry)
+
+            Gauge.builder("chain.transactions.pending", it, { it.getNumberOfPendingTransactions().toDouble() })
+                    .baseUnit("transaction")
+                    .register(meterRegistry)
+        }
+    }
 
     bean("eventPublisher") { EventPublisher() }
 

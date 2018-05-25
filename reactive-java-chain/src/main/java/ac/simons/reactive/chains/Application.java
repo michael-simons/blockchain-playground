@@ -25,6 +25,9 @@ import static org.springframework.web.reactive.function.server.ServerResponse.st
 
 import java.util.Map;
 
+import io.micrometer.core.instrument.FunctionCounter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
@@ -44,8 +47,18 @@ public class Application {
 	}
 
 	@Bean
-	public Chain chain() {
-		return Chain.defaultChain();
+	public Chain chain(final MeterRegistry meterRegistry) {
+		var chain = Chain.defaultChain();
+
+		FunctionCounter.builder("chain.blocks.computed", chain, Chain::getLength)
+			.baseUnit("block")
+			.register(meterRegistry);
+
+		Gauge.builder("chain.transactions.pending", chain, Chain::getNumberOfPendingTransactions)
+			.baseUnit("transaction")
+			.register(meterRegistry);
+
+		return chain;
 	}
 
 	@Bean

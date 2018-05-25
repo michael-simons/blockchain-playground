@@ -87,20 +87,13 @@ public class Chain {
 	/**
 	 * A queue with pending transactions.
 	 */
-	private final Queue<Transaction> pendingTransactions = Metrics.gauge(
-		"chain.transactions.pending",
-		new PriorityBlockingQueue<>(64, Comparator.comparingLong(Transaction::getTimestamp)),
-		Queue::size);
+	private final Queue<Transaction> pendingTransactions =
+		new PriorityBlockingQueue<>(64, Comparator.comparingLong(Transaction::getTimestamp));
 
 	/**
 	 * A meter timing the computation of hashes.
 	 */
 	private final Timer hashTimer = Metrics.timer("chain.hashes");
-
-	/**
-	 * A meter counting the number of mined blocks.
-	 */
-	private final Counter blockCounter = Metrics.counter("chain.blocks.computed");
 
 	public static Chain defaultChain() {
 		final ObjectMapper objectMapper = new ObjectMapper();
@@ -118,6 +111,14 @@ public class Chain {
 		this.blockToJson = blockToJson;
 	}
 
+	public int getLength() {
+		return this.blocks.size();
+	}
+
+	public int getNumberOfPendingTransactions() {
+		return this.pendingTransactions.size();
+	}
+
 	public Mono<Transaction> queue(final String payload) {
 		return Mono.fromSupplier(() -> {
 			var pendingTransaction = new Transaction(UUID.randomUUID().toString(), clock.millis(), payload);
@@ -127,11 +128,6 @@ public class Chain {
 	}
 
 	public Mono<Block> mine() {
-		final Consumer<Block> storeBlock = block -> {
-			blocks.add(block);
-			blockCounter.increment();
-		};
-
 		final Function<Block, Block> toTemplate = previousBlock ->
 				new Block(previousBlock.getIndex() + 1, clock.millis(), -1, selectTransactions(5), hash(previousBlock));
 
@@ -149,7 +145,7 @@ public class Chain {
 			var miner = Optional.ofNullable(pendingBlocks.poll()).orElseGet(latestBlock)
 					.map(toTemplate)
 					.flatMap(toNextBlock)
-					.doOnSuccess(storeBlock)
+					.doOnSuccess(blocks::add)
 					// This is paramount. The mono gets replayed on each subscription
 					.cache();
 			// Add it to the pending blocks in any case.
