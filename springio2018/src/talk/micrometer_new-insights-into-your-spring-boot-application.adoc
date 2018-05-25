@@ -30,17 +30,13 @@ While logging is usually about events happening in a system and tracing can mean
 
 Usually you trace a request, a call stack or routes throughout your system. While doing so, you can measure the time a single request or a downsampled among of request takes to go through the system.
 
-Metrics however deals with aggregates of measurements, over system and over time. That means, you can answer the question how long requests took on average in the last minutes throughout your whole system and not how long one single request got stuck in one of your subsystems.
-
-Micrometer is all about collecting measurements and aggregating them into metrics.
-
-Today we are gonna speak about Micrometer.
+Metrics however deals with aggregates of measurements, over system and over time. That means, you can answer the question how long requests took on average in the last minutes throughout your whole system and not how long one single request got stuck in one of your subsystems and that's where Micrometer comes into play.
 
 == Micrometer
 
-https://micrometer.io[Micrometer] is a new product or project by Pivotal. It's elevator pitch is "Like SLF4J but for metrics". Now most of us know that SLF4J is a logging facade. You can connect various logging systems to it and use various appenders with it. That's one aspect of Micrometer, too. It's a vendor neutral facade for various monitoring systems and provides an API to collect metrics for you.
+https://micrometer.io[Micrometer] is a new product or project by Pivotal. It is all about collecting measurements and aggregating them into metrics. Micrometers elevator pitch is "Like SLF4J but for metrics". Now most of us know that SLF4J is a logging facade. You can connect various logging systems to it and use various appenders with it. That's one aspect of Micrometer, too. It's a vendor neutral facade for various monitoring systems and provides an API to collect metrics for you.
 
-Furthermore, and that's the next common thing with SLF4: It provides a nice, clean way of retrieving meters to measure things, a globval factory method, much like all the logging system do.
+Furthermore, and that's the next thing in common with SLF4: It provides a nice, clean way of retrieving meters to measure things, a gobal factory method, much like all the logging system do.
 
 == How to get Micrometer into Spring Boot?
 
@@ -126,7 +122,7 @@ Now, try the `/metrics` endpoint again and end in a 404 error.
 
 Spring Boot Actuator has some new concepts in Spring Boot 2 as we might have already heard here in beautiful Barcelona. Endpoints are no longer sensitive or not and there is no explicit security for them in place.
 
-Instead there's a concept of having them enabled and exposed. All endpoints except for the `/shutdown` endpoint are enabled by default, none but `/health` and `/info` are enabled.
+Instead there's a concept of having them enabled and exposed. All endpoints except for the `/shutdown` endpoint are enabled by default, none but `/health` and `/info` are exposed.
 
 For this demo we expose all of them with
 
