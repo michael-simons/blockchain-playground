@@ -85,10 +85,7 @@ class Chain(
      */
     private val blocks = mutableListOf(genesisBlock)
 
-    private val pendingTransactions: Queue<Transaction> = Metrics.gauge(
-        "chain.transactions.pending",
-        PriorityBlockingQueue(64, compareBy<Transaction> { it.timestamp }),
-        { it.size.toDouble() })!!
+    private val pendingTransactions: Queue<Transaction> = PriorityBlockingQueue(64, compareBy<Transaction> { it.timestamp })
 
     private val hashTimer = Metrics.timer("chain.hashes")
 
