@@ -15,10 +15,16 @@
  */
 package ac.simons.springio2018;
 
+import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.dropwizard.DropwizardConfig;
+import io.micrometer.core.instrument.dropwizard.DropwizardMeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.core.instrument.util.HierarchicalNameMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,21 +33,26 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import com.codahale.metrics.ConsoleReporter;
+import com.codahale.metrics.MetricRegistry;
+
 public class Demo {
 	public static void main(String... args) {
-		// Let's start with a registry
-		var meterRegistry = new SimpleMeterRegistry();
-		// Use the global registry
-		// Metrics.addRegistry(new SimpleMeterRegistry());
-		// var meterRegistry = Metrics.globalRegistry;
+		Metrics.addRegistry(new SimpleMeterRegistry());
 
+		// We can use Dropwizard Console Reporter and Dropwizard Registries as well
+		var dropwizardsMetricRegistry = new MetricRegistry();
+		Metrics.addRegistry(consoleLoggingRegistry(dropwizardsMetricRegistry));
+		var consoleReporter = consoleReporter(dropwizardsMetricRegistry);
+
+		var meterRegistry = Metrics.globalRegistry;
 
 		// Create a counter
-		var ehemCounter = meterRegistry.counter("presentation.filler-words", "word", "ehem");
+		var ehemCounter = meterRegistry.counter("presentation.filler.words", "word", "ehem");
 		ehemCounter.increment();
 
 		// Or via the builder
-		var sooooCounter = Counter.builder("presentation.filler-words")
+		var sooooCounter = Counter.builder("presentation.filler.words")
 			.tag("word", "soooo…")
 			.register(meterRegistry);
 		sooooCounter.increment(2);
@@ -98,5 +109,37 @@ public class Demo {
 			.register(meterRegistry);
 
 		System.out.println(usedMemory.value());
+		consoleReporter.report();
+	}
+
+	static MeterRegistry consoleLoggingRegistry(MetricRegistry dropwizardRegistry) {
+		DropwizardConfig consoleConfig = new DropwizardConfig() {
+
+			@Override
+			public String prefix() {
+				return "console";
+			}
+
+			@Override
+			public String get(String key) {
+				return null;
+			}
+		};
+
+		return new DropwizardMeterRegistry(consoleConfig, dropwizardRegistry, HierarchicalNameMapper.DEFAULT,
+			Clock.SYSTEM) {
+			@Override
+			protected Double nullGaugeValue() {
+				return null;
+			}
+		};
+	}
+
+	static ConsoleReporter consoleReporter(MetricRegistry dropwizardRegistry) {
+		ConsoleReporter reporter = ConsoleReporter.forRegistry(dropwizardRegistry)
+			.convertRatesTo(TimeUnit.SECONDS)
+			.convertDurationsTo(TimeUnit.MILLISECONDS)
+			.build();
+		return reporter;
 	}
 }

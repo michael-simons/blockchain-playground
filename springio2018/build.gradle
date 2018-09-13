@@ -31,20 +31,19 @@ idea {
   }
 }
 
-
 repositories {
     mavenCentral()
 }
 
 dependencies {
     compile('io.micrometer:micrometer-core')
+    compile 'io.dropwizard.metrics:metrics-core:4.0.3'
 }
 
 import org.asciidoctor.gradle.AsciidoctorTask
 
 tasks.withType(AsciidoctorTask) { docTask ->
-    attributes \
-          'sourceDir': "$projectDir/src/"
+    attributes 'sourceDir': "$projectDir/src/"
 
     sourceDir = new File("src/talk")
     outputDir = new File(project.buildDir, "talk")
